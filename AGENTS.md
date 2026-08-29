@@ -1,5 +1,8 @@
 # ScoutSwap contributor guidance
 
+Read `docs/IMPLEMENTATION_PLAN.md` before beginning a new implementation target
+or handing work between laptops.
+
 ## Project goal
 
 ScoutSwap finds affordable replacement candidates for football players using
@@ -47,4 +50,3 @@ Before considering a change complete:
 2. Confirm `.env`, virtual environments, IDE metadata, databases, and generated
    package metadata remain untracked.
 3. Avoid live API calls in unit tests; use `httpx.MockTransport` or fixtures.
-
