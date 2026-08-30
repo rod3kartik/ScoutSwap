@@ -13,6 +13,9 @@ dependencies = [
   "pydantic-settings>=2.4,<3",
 ]
 
+[project.scripts]
+scoutswap-audit = "scoutswap.audit:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8,<9",

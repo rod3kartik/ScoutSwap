@@ -29,3 +29,15 @@ premier_league = client.get_competition_teams("PL")
 print(premier_league.teams[0].name)
 ```
 
+## Safe source-data audit
+
+Run the aggregate Premier League coverage audit with:
+
+```bash
+scoutswap-audit
+```
+
+The command reports field availability and request counts only. If the
+competition response omits squads, team fallback requests are paced to respect
+the football-data.org free-plan rate limit. It never prints the API token or
+full player payloads.
