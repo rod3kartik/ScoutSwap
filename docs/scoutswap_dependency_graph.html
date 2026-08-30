@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ScoutSwap Project Dependency Graph</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --card:#fbfbfc; --text:#16181d; --muted:#656b76;
+    --border:#d9dde5; --accent:#2563eb; --accent-bg:#eaf1ff; --critical:#0f766e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+  .wrap{max-width:1800px;margin:0 auto;padding:24px}
+  h1{font-size:24px;margin:0 0 6px}
+  .sub{color:var(--muted);margin-bottom:18px}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  button{border:1px solid var(--border);background:white;color:var(--text);padding:9px 13px;border-radius:9px;font-weight:600;cursor:pointer}
+  button.active{background:var(--accent-bg);border-color:#a9c3ff}
+  .hint{margin-left:auto;color:var(--muted);font-size:14px}
+  .canvas{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:auto}
+  svg{display:block;width:1680px;height:auto}
+  .detail{margin-top:12px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .detail-title{font-weight:700;font-size:16px}
+  .detail-meta,.detail-grid{color:var(--muted);font-size:14px}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+  .legend{display:flex;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:10px}
+  @media(max-width:700px){.wrap{padding:12px}.hint{margin-left:0;width:100%}.detail-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ScoutSwap Project Dependency Graph</h1>
+  <div class="sub">Interactive dependency network based on the project backlog.</div>
+
+  <div class="toolbar">
+    <button id="full" class="active" type="button">Full network</button>
+    <button id="critical" type="button">Critical path</button>
+    <span class="hint">Click a story for details</span>
+  </div>
+
+  <div class="canvas">
+    <svg id="svg" viewBox="0 0 1680 900" role="img" aria-label="ScoutSwap project dependency graph"></svg>
+  </div>
+
+  <div id="detail" class="detail" aria-live="polite">
+    <div class="detail-title">Select a story</div>
+    <div class="detail-meta">Its release, epic, priority, points and direct dependencies will appear here.</div>
+  </div>
+
+  <div class="legend">
+    <span><b>Thick teal line</b> = critical path</span>
+    <span><b>Thin gray line</b> = supporting dependency</span>
+    <span>Nodes are arranged roughly left → right by delivery sequence.</span>
+  </div>
+</div>
+
+<script>
+(() => {
+  const stories = [
+    ['SS-001','Safe PL data audit','0.1','Epic 0','P0',3,[],1],
+    ['SS-002','Source coverage report','0.1','Epic 0','P0',2,['SS-001'],1],
+    ['SS-003','Product feasibility gate','0.1','Epic 0','P0',1,['SS-002'],1],
+    ['SS-101','Domain player model','0.1','Epic 1','P0',3,['SS-003'],1],
+    ['SS-102','Position normalization','0.1','Epic 1','P0',3,['SS-101'],1],
+    ['SS-103','Age & contract parsing','0.1','Epic 1','P0',2,['SS-101'],1],
+    ['SS-104','Data completeness','0.1','Epic 1','P0',2,['SS-101','SS-102','SS-103'],1],
+    ['SS-201','Repository protocols','0.2','Epic 2','P0',3,['SS-101'],1],
+    ['SS-202','AWS & DDB config','0.2','Epic 2','P0',2,['SS-201'],1],
+    ['SS-203','DDB player repository','0.2','Epic 2','P0',5,['SS-102','SS-104','SS-201','SS-202'],1],
+    ['SS-204','Value history repository','0.2','Epic 2','P1',3,['SS-202'],0],
+    ['SS-205','Sync lock & run repo','0.2','Epic 2','P1',5,['SS-202'],0],
+    ['SS-301','Candidate filters','0.2','Epic 3','P0',3,['SS-104','SS-201'],1],
+    ['SS-302','Similarity scoring','0.2','Epic 3','P0',5,['SS-301'],1],
+    ['SS-303','Savings & ranking','0.2','Epic 3','P0',2,['SS-302'],1],
+    ['SS-401','PL squad collector','0.3','Epic 4','P0',3,['SS-001','SS-101','SS-102','SS-103','SS-104'],1],
+    ['SS-402','Idempotent sync service','0.3','Epic 4','P0',5,['SS-203','SS-204','SS-205','SS-401'],1],
+    ['SS-403','Sync contract tests','0.3','Epic 4','P0',3,['SS-402'],0],
+    ['SS-501','CDK & DDB resources','0.3','Epic 5','P0',5,['SS-202','SS-203','SS-204','SS-205'],1],
+    ['SS-502','Lambda & least privilege','0.3','Epic 5','P0',5,['SS-501'],1],
+    ['SS-503','EventBridge & observability','0.3','Epic 5','P1',3,['SS-402','SS-502'],0],
+    ['SS-601','FastAPI Lambda foundation','0.3','Epic 6','P0',3,['SS-502'],1],
+    ['SS-602','Player search & detail','0.3','Epic 6','P0',5,['SS-203','SS-601'],0],
+    ['SS-603','Replacement endpoint','0.3','Epic 6','P0',3,['SS-303','SS-601'],1],
+    ['SS-604','Admin synchronization','0.3','Epic 6','P1',3,['SS-402','SS-601'],0],
+    ['SS-701','Player selection UI','1.0','Epic 7','P0',3,['SS-602'],1],
+    ['SS-702','Filters & results UI','1.0','Epic 7','P0',5,['SS-603'],1],
+    ['SS-703','S3 & CloudFront','1.0','Epic 7','P0',5,['SS-701','SS-702'],1],
+    ['SS-801','CI quality gate','1.0','Epic 8','P1',3,[],0],
+    ['SS-802','Operations guide','1.0','Epic 8','P1',3,['SS-801'],0],
+    ['SS-803','Production monitoring','1.0','Epic 8','P1',3,['SS-503'],0]
+  ];
+
+  const criticalEdges = new Set([
+    'SS-001>SS-002','SS-002>SS-003','SS-003>SS-101','SS-101>SS-102','SS-101>SS-103',
+    'SS-102>SS-104','SS-103>SS-104','SS-101>SS-201','SS-201>SS-202','SS-202>SS-203',
+    'SS-104>SS-203','SS-104>SS-301','SS-301>SS-302','SS-302>SS-303','SS-104>SS-401',
+    'SS-401>SS-402','SS-203>SS-402','SS-203>SS-501','SS-501>SS-502','SS-502>SS-601',
+    'SS-303>SS-603','SS-601>SS-603','SS-602>SS-701','SS-603>SS-702','SS-701>SS-703','SS-702>SS-703'
+  ]);
+
+  const positions = {
+    'SS-001':[35,90],'SS-002':[215,90],'SS-003':[395,90],
+    'SS-101':[575,90],'SS-102':[755,40],'SS-103':[755,140],'SS-104':[935,90],
+    'SS-201':[575,285],'SS-202':[755,285],'SS-203':[935,255],'SS-204':[935,345],'SS-205':[935,435],
+    'SS-301':[1115,90],'SS-302':[1295,90],'SS-303':[1475,90],
+    'SS-401':[1115,255],'SS-402':[1295,255],'SS-403':[1475,255],
+    'SS-501':[1115,435],'SS-502':[1295,435],'SS-503':[1475,435],
+    'SS-601':[1115,615],'SS-602':[1295,570],'SS-603':[1295,660],'SS-604':[1475,660],
+    'SS-701':[1115,795],'SS-702':[1295,795],'SS-703':[1475,795],
+    'SS-801':[575,795],'SS-802':[755,795],'SS-803':[1475,525]
+  };
+
+  const svg = document.getElementById('svg');
+  const detail = document.getElementById('detail');
+  const NS='http://www.w3.org/2000/svg';
+  let mode='full';
+
+  function el(name, attrs={}) {
+    const n=document.createElementNS(NS,name);
+    for(const [k,v] of Object.entries(attrs)) n.setAttribute(k,v);
+    return n;
+  }
+
+  function render(){
+    svg.innerHTML='';
+    const defs=el('defs');
+    const marker=el('marker',{id:'arrow',viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'6',markerHeight:'6',orient:'auto-start-reverse'});
+    marker.appendChild(el('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#6b7280'}));
+    defs.appendChild(marker); svg.appendChild(defs);
+
+    const bands=[
+      [22,22,1040,202,'Release 0.1 — Validated player domain'],
+      [562,222,1100,305,'Release 0.2 — Replacement engine + storage'],
+      [1098,222,564,540,'Release 0.3 — Synchronized AWS API'],
+      [562,760,1100,125,'Release 1.0 — User-facing MVP']
+    ];
+    bands.forEach(([x,y,w,h,t])=>{
+      svg.appendChild(el('rect',{x,y,width:w,height:h,rx:16,fill:'#fbfbfc',stroke:'#d9dde5'}));
+      const tx=el('text',{x:x+14,y:y+22,fill:'#656b76','font-size':12,'font-weight':600});
+      tx.textContent=t; svg.appendChild(tx);
+    });
+
+    const visible=new Set(stories.filter(s=>mode==='full'||s[7]).map(s=>s[0]));
+
+    stories.forEach(target=>{
+      if(!visible.has(target[0])) return;
+      target[6].forEach(dep=>{
+        if(!visible.has(dep)) return;
+        const [x1,y1]=positions[dep], [x2,y2]=positions[target[0]];
+        const crit=criticalEdges.has(dep+'>'+target[0]);
+        if(mode==='critical'&&!crit) return;
+        svg.appendChild(el('path',{
+          d:`M ${x1+142} ${y1+30} C ${x1+158} ${y1+30}, ${x2-16} ${y2+30}, ${x2} ${y2+30}`,
+          fill:'none',stroke:crit?'#0f766e':'#6b7280','stroke-width':crit?3:1.4,'stroke-opacity':crit?0.9:0.45,'marker-end':'url(#arrow)'
+        }));
+      });
+    });
+
+    stories.forEach(s=>{
+      if(!visible.has(s[0])) return;
+      const [x,y]=positions[s[0]];
+      const g=el('g',{tabindex:'0',role:'button',style:'cursor:pointer'});
+      g.appendChild(el('rect',{x,y,width:142,height:60,rx:10,fill:'#ffffff',stroke:s[7]?'#0f766e':'#d9dde5','stroke-width':s[7]?2:1}));
+      const id=el('text',{x:x+10,y:y+21,fill:'#16181d','font-size':13,'font-weight':700}); id.textContent=s[0]; g.appendChild(id);
+      const label=el('text',{x:x+10,y:y+40,fill:'#656b76','font-size':10}); label.textContent=s[1].length>22?s[1].slice(0,21)+'…':s[1]; g.appendChild(label);
+      const meta=el('text',{x:x+10,y:y+54,fill:'#656b76','font-size':9}); meta.textContent=s[4]+' · '+s[5]+' pts'; g.appendChild(meta);
+      g.addEventListener('click',()=>showDetail(s));
+      g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showDetail(s)}})
+      svg.appendChild(g);
+    });
+  }
+
+  function showDetail(s){
+    const dependents=stories.filter(x=>x[6].includes(s[0])).map(x=>x[0]);
+    detail.innerHTML=`
+      <div class="detail-title">${s[0]} — ${s[1]}</div>
+      <div class="detail-meta">${s[2]} · ${s[3]} · ${s[4]} · ${s[5]} points</div>
+      <div class="detail-grid">
+        <div><b>Depends on:</b> ${s[6].length?s[6].join(', '):'None listed'}</div>
+        <div><b>Unlocks:</b> ${dependents.length?dependents.join(', '):'No direct dependent story'}</div>
+      </div>`;
+  }
+
+  const full=document.getElementById('full'), critical=document.getElementById('critical');
+  full.addEventListener('click',()=>{mode='full';full.classList.add('active');critical.classList.remove('active');render()});
+  critical.addEventListener('click',()=>{mode='critical';critical.classList.add('active');full.classList.remove('active');render()});
+  render();
+})();
+</script>
+</body>
+</html>
