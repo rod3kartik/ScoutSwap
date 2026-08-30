@@ -1,7 +1,10 @@
 # ScoutSwap contributor guidance
 
-Read `docs/IMPLEMENTATION_PLAN.md` before beginning a new implementation target
-or handing work between laptops.
+Before beginning a story or handing work between laptops, read:
+
+1. `docs/IMPLEMENTATION_PLAN.md` for architecture and constraints.
+2. `docs/PROJECT_BACKLOG.md` for story scope and delivery order.
+3. `docs/DECISIONS.md` for accepted and pending decisions.
 
 ## Project goal
 

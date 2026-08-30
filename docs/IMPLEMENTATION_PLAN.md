@@ -231,171 +231,12 @@ Initial filters:
 Every result should include structured explanation fields rather than only a
 preformatted sentence.
 
-## Phased delivery plan
+## Delivery tracking
 
-### Target 1: Audit the live source data
-
-Tasks:
-
-- Add a safe command or script that fetches Premier League teams once.
-- Inspect whether competition-team responses include complete squads.
-- Calculate counts and percentages for market value, position, birth date, and
-  contract coverage.
-- Write only aggregate coverage results to output; never dump the token.
-- If a single competition request lacks squads, document the minimum safe call
-  strategy that respects the API rate limit.
-
-Acceptance criteria:
-
-- One authenticated synchronization request succeeds.
-- A data-coverage report identifies which ranking fields are usable.
-- Tests remain fully mocked.
-- The report contains no secrets or unnecessary personal data dumps.
-
-### Target 2: Normalize domain records
-
-Tasks:
-
-- Introduce persisted/domain player and value snapshot models separate from raw
-  API payload models.
-- Associate squad members with their club.
-- Normalize football-data.org position strings into a documented vocabulary.
-- Calculate age using an explicit `as_of` date for deterministic tests.
-- Parse contract expiration and calculate data completeness.
-
-Acceptance criteria:
-
-- Complete and incomplete API payloads normalize without crashing.
-- Age and completeness tests use fixed dates.
-- Unknown positions map to an explicit fallback rather than disappearing.
-
-### Target 3: Add the DynamoDB storage boundary
-
-Tasks:
-
-- Add Boto3 as a dependency.
-- Add DynamoDB and AWS region settings without adding access-key settings.
-- Define repository protocols.
-- Implement player upsert, player lookup, candidate query, club query, snapshot
-  insertion, and history query.
-- Use batch writers for squad imports and conditional writes where idempotency
-  matters.
-- Use integer minor/whole currency units consistently; do not use floating-point
-  values for money.
-
-Acceptance criteria:
-
-- Unit tests run without AWS credentials.
-- Repository tests use stubs, fakes, or a deliberately selected local emulator.
-- Candidate lookup uses the position/value GSI rather than a full scan.
-- Missing optional attributes round-trip safely.
-
-### Target 4: Implement replacement ranking
-
-Tasks:
-
-- Implement candidate filters and score components.
-- Return total score, component scores, savings, and explanation facts.
-- Keep ranking code free of HTTP, Boto3, and FastAPI imports.
-- Define deterministic tie-breaking.
-
-Acceptance criteria:
-
-- Tests cover equal players, cheaper players, missing values, age boundaries,
-  same-club exclusion, and ties.
-- Scores remain within the documented range.
-- A recommendation can explain why it ranked above another candidate.
-
-### Target 5: Build synchronization service
-
-Tasks:
-
-- Fetch Premier League squads through the existing client.
-- Normalize and batch-upsert players.
-- Create value snapshots according to the recorded snapshot policy.
-- Record sync metrics and failures.
-- Add overlap protection and retry-safe behavior.
-
-Acceptance criteria:
-
-- Re-running the same payload does not duplicate players or corrupt history.
-- Partial failures are visible in the sync record.
-- External requests use explicit timeouts and useful domain exceptions.
-
-### Target 6: Provision AWS infrastructure
-
-Tasks:
-
-- Add a Python AWS CDK application under `infrastructure/`.
-- Define DynamoDB tables, indexes, TTL where appropriate, encryption defaults,
-  and point-in-time recovery based on environment needs.
-- Define the sync Lambda, API Lambda, API Gateway, EventBridge schedule,
-  CloudWatch logs/alarms, and secret/parameter references.
-- Export non-secret resource names for application configuration.
-
-Acceptance criteria:
-
-- `cdk synth` succeeds.
-- Infrastructure changes are reviewable in source control.
-- IAM policies name exact resources and required actions.
-- Development and production environments cannot accidentally share table
-  names.
-
-### Target 7: Add FastAPI endpoints
-
-Initial endpoints:
-
-```text
-GET  /health
-GET  /players
-GET  /players/{player_id}
-GET  /players/{player_id}/replacements
-POST /admin/sync
-```
-
-Tasks:
-
-- Add FastAPI and a Lambda adapter such as Mangum.
-- Add request validation, pagination, and structured errors.
-- Protect administrative synchronization.
-- Ensure API responses expose source timestamps and data completeness.
-
-Acceptance criteria:
-
-- OpenAPI generation succeeds.
-- Endpoint tests use fake repositories.
-- Error responses never expose secrets or raw upstream responses.
-
-### Target 8: Build and deploy the frontend
-
-Tasks:
-
-- Build player search, player detail, replacement filters, and ranked results.
-- Display missing data honestly.
-- Host static assets in S3 through CloudFront.
-- Keep admin operations out of the public interface initially.
-
-Acceptance criteria:
-
-- A user can select a player and obtain replacement results end to end.
-- Mobile and desktop layouts are usable.
-- Recommendation explanations and source dates are visible.
-
-### Target 9: Delivery automation and operations
-
-Tasks:
-
-- Add GitHub Actions for tests and infrastructure synthesis.
-- Add formatting/linting only with an agreed tool configuration.
-- Document AWS bootstrap, deployment, rollback, and second-laptop setup.
-- Add CloudWatch alarms for synchronization and API failures.
-- Consider DynamoDB export to S3/Athena only after operational needs exist.
-
-Acceptance criteria:
-
-- Every pull request runs package tests.
-- A clean laptop can authenticate with AWS SSO, install the package, run tests,
-  and deploy using documented commands.
+Epics, stories, estimates, dependencies, and milestone exit criteria live in
+`PROJECT_BACKLOG.md`. Architectural choices and unresolved questions live in
+`DECISIONS.md`. This document intentionally does not track day-to-day story
+status.
 
 ## Collaboration workflow for two laptops
 
@@ -419,7 +260,7 @@ Before handing work to the other laptop:
 2. Review `git diff` and confirm secrets are absent.
 3. Commit coherent changes.
 4. Push the branch.
-5. Update this document if a durable decision changed.
+5. Update `DECISIONS.md` if a durable decision changed.
 6. State the branch name, last commit, tests run, and remaining work.
 
 Do not use a shared uncommitted working state as a handoff mechanism. Do not
@@ -437,25 +278,12 @@ SCOUTSWAP_ENVIRONMENT=dev
 ```
 
 Exact DynamoDB table and index environment-variable names should be added only
-when Target 3 settles the configuration API. AWS credentials must remain in the
+when SS-202 settles the configuration API. AWS credentials must remain in the
 AWS CLI/SSO credential mechanism, not `.env`.
-
-## Open decisions
-
-Record answers here when decided:
-
-- AWS region: proposed `us-west-2`, not yet confirmed.
-- Infrastructure tool: proposed AWS CDK for Python, not yet confirmed.
-- Snapshot policy: every observation versus value-change-only.
-- Public API authentication: not needed for read-only MVP, but admin sync must
-  be protected.
-- Frontend technology: static HTML/JavaScript or a compiled framework.
-- Whether football-data.org returns enough non-null market values on the current
-  account plan. Target 1 must answer this before weights are finalized.
 
 ## Immediate next action
 
-Do not provision AWS first. Complete Target 1 and document real source-data
-coverage. Then complete Target 2 before implementing DynamoDB serialization.
-This prevents the cloud schema from being based on assumed API fields.
-
+Do not provision AWS first. Complete stories SS-001 through SS-003 and document
+real source-data coverage. Then complete the domain stories before implementing
+DynamoDB serialization. This prevents the cloud schema from being based on
+assumed API fields.
