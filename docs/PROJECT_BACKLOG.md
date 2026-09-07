@@ -369,6 +369,19 @@ Acceptance criteria:
 - Authentication mechanism is recorded before implementation.
 - Public unauthenticated callers cannot start synchronization.
 
+#### SS-605 — API response contract examples
+
+- Priority: P1
+- Points: 2
+- Depends on: SS-602, SS-603
+
+Acceptance criteria:
+
+- Example responses for search, player detail, replacement results, and errors
+  are checked in.
+- Examples distinguish source fields from ScoutSwap-calculated scores.
+- Contract tests fail when required response fields are removed or renamed.
+
 Milestone exit: the deployed API supports player selection and explainable
 replacement results.
 
@@ -382,31 +395,69 @@ replacement results.
 - Points: 3
 - Depends on: SS-602
 
+Acceptance criteria:
+
+- Player search supports keyboard navigation, pointer selection, and mobile
+  viewports.
+- Results identify player, club, position, market-value availability, and source
+  observation date.
+- Empty, loading, and API-error states are handled without exposing technical
+  stack traces.
+
 #### SS-702 — Replacement filters and results
 
 - Priority: P0
 - Points: 5
 - Depends on: SS-603
 
-Acceptance criteria for SS-701 and SS-702:
+Acceptance criteria:
 
-- Player search is keyboard and mobile usable.
 - Budget, age, and club-exclusion filters are available.
 - Results show score breakdown, savings, explanations, completeness, and source
   date.
 - Missing fields are displayed honestly.
+- Similarity scores are labeled as ScoutSwap scores, not official valuations.
+- Filter changes refresh results predictably without losing the selected player.
 
-#### SS-703 — S3 and CloudFront deployment
+#### SS-703 — Frontend API client and runtime configuration
+
+- Priority: P0
+- Points: 3
+- Depends on: SS-602, SS-603
+
+Acceptance criteria:
+
+- API base URL is supplied through environment-specific configuration.
+- Network failures, validation errors, and empty responses produce user-safe
+  states.
+- Frontend code does not contain football-data.org tokens or AWS credentials.
+- Tests cover successful search, replacement results, and API failure states.
+
+#### SS-704 — Frontend accessibility and responsive QA
+
+- Priority: P1
+- Points: 3
+- Depends on: SS-701, SS-702
+
+Acceptance criteria:
+
+- Core search and replacement flows pass keyboard-only smoke testing.
+- Labels, focus states, and contrast support the MVP workflows.
+- Mobile and desktop layouts are visually checked before release.
+
+#### SS-705 — S3 and CloudFront deployment
 
 - Priority: P0
 - Points: 5
-- Depends on: SS-701, SS-702
+- Depends on: SS-701, SS-702, SS-703
 
 Acceptance criteria:
 
 - CloudFront serves a private S3 origin over HTTPS.
 - API URL is environment-configured.
 - Deployment is reproducible.
+- Browser caching policy is documented for static assets and runtime
+  configuration.
 
 ### Epic 8: Delivery and operations
 
@@ -419,6 +470,8 @@ Acceptance criteria:
 
 - Pull requests run package tests and `cdk synth` when infrastructure exists.
 - Secrets and generated files remain excluded.
+- Formatting and type-checking commands are documented or automated.
+- CI uses mocked services rather than live football-data.org or AWS calls.
 
 #### SS-802 — AWS and second-laptop operations guide
 
@@ -429,6 +482,8 @@ Acceptance criteria:
 Acceptance criteria:
 
 - AWS SSO, bootstrap, deploy, rollback, and clean-laptop setup are documented.
+- Required local tools and supported versions are listed.
+- The guide explains how to run a safe non-production synchronization.
 
 #### SS-803 — Production monitoring
 
@@ -440,9 +495,123 @@ Acceptance criteria:
 
 - API and synchronization failure alarms exist.
 - Logs contain no secrets.
+- Dashboard or documented CloudWatch queries show API errors, sync outcomes,
+  request counts, and throttling.
+- Alert routing and expected first response are documented.
+
+#### SS-804 — Release readiness checklist
+
+- Priority: P1
+- Points: 2
+- Depends on: SS-705, SS-801, SS-802, SS-803
+
+Acceptance criteria:
+
+- A checked-in checklist covers tests, infrastructure synthesis, deployment,
+  smoke tests, rollback, and data freshness.
+- Checklist includes manual verification that labels do not imply official
+  transfer valuations.
+- Release notes template records source-data limitations and known gaps.
+
+#### SS-805 — Cost and quota guardrails
+
+- Priority: P1
+- Points: 3
+- Depends on: SS-503, SS-705
+
+Acceptance criteria:
+
+- AWS budget or documented cost-monitoring approach exists for development and
+  production environments.
+- Synchronization cadence is documented against expected football-data.org quota
+  usage.
+- Alarms or logs make unexpected API-call growth visible.
 
 Milestone exit: a browser user can select a Premier League player and receive
 explainable replacement recommendations from the deployed AWS application.
+
+## Release 1.1 — Post-MVP learning loop
+
+### Epic 9: Recommendation quality
+
+#### SS-901 — Recommendation review dataset
+
+- Priority: P2
+- Points: 3
+- Depends on: SS-303
+
+Acceptance criteria:
+
+- A small anonymized fixture set captures selected players and expected
+  replacement-ranking characteristics.
+- Dataset includes edge cases for missing market values, unknown positions, and
+  sparse contract data.
+- Tests use the fixture set without live API calls.
+
+#### SS-902 — Weight tuning workflow
+
+- Priority: P2
+- Points: 5
+- Depends on: SS-901
+
+Acceptance criteria:
+
+- Ranking weights can be compared against the review dataset.
+- Weight changes produce a readable before-and-after report.
+- Any changed default weights are recorded in `DECISIONS.md`.
+
+#### SS-903 — Recommendation feedback capture
+
+- Priority: P2
+- Points: 5
+- Depends on: SS-603, SS-705
+
+Acceptance criteria:
+
+- Users can mark a recommendation as useful or not useful without entering
+  personal data.
+- Stored feedback links to player IDs, score version, and observation date.
+- Feedback storage and retention are documented before deployment.
+
+### Epic 10: Data quality and scope expansion
+
+#### SS-1001 — Data freshness indicator
+
+- Priority: P1
+- Points: 3
+- Depends on: SS-402, SS-603, SS-702
+
+Acceptance criteria:
+
+- API exposes last successful synchronization time for the served competition.
+- Frontend displays stale-data states without blocking normal use.
+- Tests cover fresh, stale, and never-synchronized data.
+
+#### SS-1002 — Additional competition feasibility audit
+
+- Priority: P2
+- Points: 3
+- Depends on: SS-001, SS-002
+
+Acceptance criteria:
+
+- The audit command accepts a competition code without changing source code.
+- Report compares coverage and request strategy against the Premier League
+  baseline.
+- No new competition is enabled in production without a decision entry.
+
+#### SS-1003 — Multi-competition storage readiness
+
+- Priority: P2
+- Points: 5
+- Depends on: SS-1002
+
+Acceptance criteria:
+
+- Repository access patterns and DynamoDB keys are reviewed for competition
+  isolation.
+- Required schema or index changes are documented before implementation.
+- Existing Premier League behavior remains backward compatible.
 
 ## Critical path
 
@@ -452,8 +621,8 @@ SS-001 → SS-002 → SS-003
 → SS-201 → SS-202 → SS-203
 → SS-301 → SS-302 → SS-303
 → SS-401 → SS-402
-→ SS-501 → SS-502 → SS-601 → SS-603
-→ SS-701 → SS-702 → SS-703
+→ SS-501 → SS-502 → SS-601 → SS-602/SS-603
+→ SS-701 → SS-702 → SS-703 → SS-705
 ```
 
 ## First sprint
@@ -467,4 +636,3 @@ The first sprint contains:
 5. SS-102 — Position normalization.
 
 The first implementation story is SS-001.
-
