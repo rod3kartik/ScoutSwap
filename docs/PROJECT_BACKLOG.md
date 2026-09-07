@@ -69,7 +69,7 @@ Acceptance criteria:
 - Do not finalize DynamoDB indexes or ranking weights before this decision.
 
 Milestone exit: the repository contains a documented go/no-go decision for the
-initial value-based replacement experience.
+initial replacement experience and any required value-based scope change.
 
 ### Epic 1: Trusted player domain
 
@@ -164,19 +164,20 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Player get, batch upsert, club query, and candidate query are implemented.
-- Candidate lookup uses the position/value GSI rather than a full scan.
+- Candidate lookup uses the normalized-position GSI rather than a full scan.
 - Optional attributes round-trip safely.
 - Money uses integers or `Decimal`, never floats.
 - Tests require no live AWS credentials.
 
 #### SS-204 — Market-value history repository
 
-- Priority: P1
+- Priority: P2
 - Points: 3
-- Depends on: SS-202
+- Depends on: SS-202, accepted market-value source decision
 
 Acceptance criteria:
 
+- Story is deferred until an accepted source provides market-value observations.
 - Snapshot insertion and chronological history retrieval work.
 - Snapshot policy is recorded in `DECISIONS.md`.
 - Duplicate behavior is deterministic and tested.
@@ -204,10 +205,10 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Filters support maximum value, optional maximum age, exact normalized
-  position, same-player exclusion, optional same-club exclusion, and minimum
-  completeness.
-- Missing selected-player market value has explicit behavior.
+- Filters support optional maximum age, exact normalized position, same-player
+  exclusion, optional same-club exclusion, and minimum completeness.
+- Missing selected-player age has explicit behavior.
+- Market-value filters are deferred until an accepted value source exists.
 
 #### SS-302 — Explainable similarity scoring
 
@@ -217,12 +218,14 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Position, age, budget, contract, and completeness components exist.
+- Position, age, and completeness components exist.
 - Weights live in one immutable configuration object.
 - Component and total scores are bounded.
 - Results contain raw explanation facts, not only prose.
+- Value/budget and contract-opportunity components are omitted or marked
+  unavailable until an accepted data source exists.
 
-#### SS-303 — Savings and deterministic ranking
+#### SS-303 — Deterministic ranking
 
 - Priority: P0
 - Points: 2
@@ -230,9 +233,9 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Savings are returned only when both source values exist.
-- Ties resolve by total score, lower value, younger age, then player ID.
-- Tests cover equal profiles, missing values, age boundaries, unknown position,
+- Savings are omitted or marked unavailable while market values are unavailable.
+- Ties resolve by total score, younger age, then player ID.
+- Tests cover equal profiles, missing ages, age boundaries, unknown position,
   completeness thresholds, same-club exclusion, and ties.
 
 Milestone exit: a package-level use case returns ranked replacements from an
@@ -258,12 +261,13 @@ Acceptance criteria:
 
 - Priority: P0
 - Points: 5
-- Depends on: SS-203, SS-204, SS-205, SS-401
+- Depends on: SS-203, SS-205, SS-401
 
 Acceptance criteria:
 
-- Service acquires a lock, fetches, normalizes, upserts, snapshots, and records
+- Service acquires a lock, fetches, normalizes, upserts players, and records
   results.
+- Market-value snapshots are skipped while no accepted value source exists.
 - Replaying the same payload does not duplicate players or corrupt history.
 - Partial failures produce sanitized, observable run records.
 
@@ -285,12 +289,14 @@ Acceptance criteria:
 
 - Priority: P0
 - Points: 5
-- Depends on: SS-202 through SS-205
+- Depends on: SS-202, SS-203, SS-205
 
 Acceptance criteria:
 
-- Python CDK project defines environment-specific tables, GSIs, encryption,
-  lock TTL, and recovery policy.
+- Python CDK project defines environment-specific player and sync tables, GSIs,
+  encryption, lock TTL, and recovery policy.
+- Market-value history infrastructure is deferred until an accepted value source
+  exists.
 - `cdk synth` succeeds without live application secrets.
 - Key-schema changes receive explicit destructive-change review.
 
@@ -354,8 +360,9 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Filters are validated.
-- Response includes ranked candidates, component scores, savings, explanation
-  facts, completeness, and source timestamps.
+- Response includes ranked candidates, component scores, explanation facts,
+  completeness, source timestamps, and unavailable value/contract fields where
+  applicable.
 - Endpoint tests use fake repositories.
 
 #### SS-604 — Protected administrative synchronization
@@ -368,6 +375,19 @@ Acceptance criteria:
 
 - Authentication mechanism is recorded before implementation.
 - Public unauthenticated callers cannot start synchronization.
+
+#### SS-605 — API response contract examples
+
+- Priority: P1
+- Points: 2
+- Depends on: SS-602, SS-603
+
+Acceptance criteria:
+
+- Example responses for search, player detail, replacement results, and errors
+  are checked in.
+- Examples distinguish source fields from ScoutSwap-calculated scores.
+- Contract tests fail when required response fields are removed or renamed.
 
 Milestone exit: the deployed API supports player selection and explainable
 replacement results.
@@ -382,31 +402,70 @@ replacement results.
 - Points: 3
 - Depends on: SS-602
 
+Acceptance criteria:
+
+- Player search supports keyboard navigation, pointer selection, and mobile
+  viewports.
+- Results identify player, club, position, market-value availability, and source
+  observation date.
+- Empty, loading, and API-error states are handled without exposing technical
+  stack traces.
+
 #### SS-702 — Replacement filters and results
 
 - Priority: P0
 - Points: 5
 - Depends on: SS-603
 
-Acceptance criteria for SS-701 and SS-702:
+Acceptance criteria:
 
-- Player search is keyboard and mobile usable.
-- Budget, age, and club-exclusion filters are available.
-- Results show score breakdown, savings, explanations, completeness, and source
-  date.
+- Age and club-exclusion filters are available.
+- Results show score breakdown, explanations, completeness, and source date.
 - Missing fields are displayed honestly.
+- Similarity scores are labeled as ScoutSwap scores, not official valuations.
+- Filter changes refresh results predictably without losing the selected player.
+- Budget and savings controls remain hidden or disabled until market values are
+  available.
 
-#### SS-703 — S3 and CloudFront deployment
+#### SS-703 — Frontend API client and runtime configuration
+
+- Priority: P0
+- Points: 3
+- Depends on: SS-602, SS-603
+
+Acceptance criteria:
+
+- API base URL is supplied through environment-specific configuration.
+- Network failures, validation errors, and empty responses produce user-safe
+  states.
+- Frontend code does not contain football-data.org tokens or AWS credentials.
+- Tests cover successful search, replacement results, and API failure states.
+
+#### SS-704 — Frontend accessibility and responsive QA
+
+- Priority: P1
+- Points: 3
+- Depends on: SS-701, SS-702
+
+Acceptance criteria:
+
+- Core search and replacement flows pass keyboard-only smoke testing.
+- Labels, focus states, and contrast support the MVP workflows.
+- Mobile and desktop layouts are visually checked before release.
+
+#### SS-705 — S3 and CloudFront deployment
 
 - Priority: P0
 - Points: 5
-- Depends on: SS-701, SS-702
+- Depends on: SS-701, SS-702, SS-703
 
 Acceptance criteria:
 
 - CloudFront serves a private S3 origin over HTTPS.
 - API URL is environment-configured.
 - Deployment is reproducible.
+- Browser caching policy is documented for static assets and runtime
+  configuration.
 
 ### Epic 8: Delivery and operations
 
@@ -419,6 +478,8 @@ Acceptance criteria:
 
 - Pull requests run package tests and `cdk synth` when infrastructure exists.
 - Secrets and generated files remain excluded.
+- Formatting and type-checking commands are documented or automated.
+- CI uses mocked services rather than live football-data.org or AWS calls.
 
 #### SS-802 — AWS and second-laptop operations guide
 
@@ -429,6 +490,8 @@ Acceptance criteria:
 Acceptance criteria:
 
 - AWS SSO, bootstrap, deploy, rollback, and clean-laptop setup are documented.
+- Required local tools and supported versions are listed.
+- The guide explains how to run a safe non-production synchronization.
 
 #### SS-803 — Production monitoring
 
@@ -440,9 +503,123 @@ Acceptance criteria:
 
 - API and synchronization failure alarms exist.
 - Logs contain no secrets.
+- Dashboard or documented CloudWatch queries show API errors, sync outcomes,
+  request counts, and throttling.
+- Alert routing and expected first response are documented.
+
+#### SS-804 — Release readiness checklist
+
+- Priority: P1
+- Points: 2
+- Depends on: SS-705, SS-801, SS-802, SS-803
+
+Acceptance criteria:
+
+- A checked-in checklist covers tests, infrastructure synthesis, deployment,
+  smoke tests, rollback, and data freshness.
+- Checklist includes manual verification that labels do not imply official
+  transfer valuations.
+- Release notes template records source-data limitations and known gaps.
+
+#### SS-805 — Cost and quota guardrails
+
+- Priority: P1
+- Points: 3
+- Depends on: SS-503, SS-705
+
+Acceptance criteria:
+
+- AWS budget or documented cost-monitoring approach exists for development and
+  production environments.
+- Synchronization cadence is documented against expected football-data.org quota
+  usage.
+- Alarms or logs make unexpected API-call growth visible.
 
 Milestone exit: a browser user can select a Premier League player and receive
 explainable replacement recommendations from the deployed AWS application.
+
+## Release 1.1 — Post-MVP learning loop
+
+### Epic 9: Recommendation quality
+
+#### SS-901 — Recommendation review dataset
+
+- Priority: P2
+- Points: 3
+- Depends on: SS-303
+
+Acceptance criteria:
+
+- A small anonymized fixture set captures selected players and expected
+  replacement-ranking characteristics.
+- Dataset includes edge cases for missing ages, unknown positions, and sparse
+  source data.
+- Tests use the fixture set without live API calls.
+
+#### SS-902 — Weight tuning workflow
+
+- Priority: P2
+- Points: 5
+- Depends on: SS-901
+
+Acceptance criteria:
+
+- Ranking weights can be compared against the review dataset.
+- Weight changes produce a readable before-and-after report.
+- Any changed default weights are recorded in `DECISIONS.md`.
+
+#### SS-903 — Recommendation feedback capture
+
+- Priority: P2
+- Points: 5
+- Depends on: SS-603, SS-705
+
+Acceptance criteria:
+
+- Users can mark a recommendation as useful or not useful without entering
+  personal data.
+- Stored feedback links to player IDs, score version, and observation date.
+- Feedback storage and retention are documented before deployment.
+
+### Epic 10: Data quality and scope expansion
+
+#### SS-1001 — Data freshness indicator
+
+- Priority: P1
+- Points: 3
+- Depends on: SS-402, SS-603, SS-702
+
+Acceptance criteria:
+
+- API exposes last successful synchronization time for the served competition.
+- Frontend displays stale-data states without blocking normal use.
+- Tests cover fresh, stale, and never-synchronized data.
+
+#### SS-1002 — Additional competition feasibility audit
+
+- Priority: P2
+- Points: 3
+- Depends on: SS-001, SS-002
+
+Acceptance criteria:
+
+- The audit command accepts a competition code without changing source code.
+- Report compares coverage and request strategy against the Premier League
+  baseline.
+- No new competition is enabled in production without a decision entry.
+
+#### SS-1003 — Multi-competition storage readiness
+
+- Priority: P2
+- Points: 5
+- Depends on: SS-1002
+
+Acceptance criteria:
+
+- Repository access patterns and DynamoDB keys are reviewed for competition
+  isolation.
+- Required schema or index changes are documented before implementation.
+- Existing Premier League behavior remains backward compatible.
 
 ## Critical path
 
@@ -452,8 +629,8 @@ SS-001 → SS-002 → SS-003
 → SS-201 → SS-202 → SS-203
 → SS-301 → SS-302 → SS-303
 → SS-401 → SS-402
-→ SS-501 → SS-502 → SS-601 → SS-603
-→ SS-701 → SS-702 → SS-703
+→ SS-501 → SS-502 → SS-601 → SS-602/SS-603
+→ SS-701 → SS-702 → SS-703 → SS-705
 ```
 
 ## First sprint
@@ -467,4 +644,3 @@ The first sprint contains:
 5. SS-102 — Position normalization.
 
 The first implementation story is SS-001.
-

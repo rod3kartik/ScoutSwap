@@ -8,9 +8,11 @@ Before beginning a story or handing work between laptops, read:
 
 ## Project goal
 
-ScoutSwap finds affordable replacement candidates for football players using
-football-data.org. Recommendations must be explainable and must distinguish
-source data from ScoutSwap's calculated scores.
+ScoutSwap finds explainable replacement candidates for football players using
+football-data.org. The first MVP uses position, club, and birth-date coverage;
+affordability is deferred until an accepted market-value source exists.
+Recommendations must distinguish source data from ScoutSwap's calculated
+scores.
 
 ## Development setup
 
