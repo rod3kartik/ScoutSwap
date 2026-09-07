@@ -9,22 +9,24 @@ not assume uncommitted work exists on another machine.
 
 ## Product goal
 
-ScoutSwap helps a user select a Premier League player and find affordable,
-explainable replacement candidates. It uses football-data.org as its initial
-data source and clearly separates source-provided market values from
-ScoutSwap-calculated similarity scores.
+ScoutSwap helps a user select a Premier League player and find explainable
+replacement candidates. The first MVP uses football-data.org position, club,
+and birth-date coverage to recommend similar players by position and age.
+Affordability, savings, market-value scoring, and contract-opportunity scoring
+are deferred until an accepted source provides those fields.
 
 An example result should eventually look like:
 
 ```text
 Replacement: Example Player
 Similarity: 86%
-Estimated saving: EUR 24m
-Why: Same position, three years younger, and 42% cheaper.
+Why: Same normalized position, three years younger, and complete source profile.
 ```
 
 ScoutSwap is not an official transfer valuation service. It must not describe
-its similarity score as a transfer fee prediction.
+its similarity score as a transfer fee prediction. When value or contract data
+is unavailable, the product must label it as unavailable rather than infer,
+estimate, or substitute zero.
 
 ## Decisions already made
 
@@ -83,11 +85,15 @@ resources, implemented persistence, or implemented the ranking engine.
 Design keys and indexes from these access patterns before provisioning tables:
 
 1. Get one player by football-data.org player ID.
-2. Find replacement candidates by normalized position and maximum market value.
+2. Find replacement candidates by normalized position.
 3. List players belonging to a club.
-4. Retrieve a player's market-value observations in chronological order.
-5. Upsert a synchronized Premier League squad without creating duplicates.
-6. Record synchronization status and prevent overlapping synchronization runs.
+4. Upsert a synchronized Premier League squad without creating duplicates.
+5. Record synchronization status and prevent overlapping synchronization runs.
+
+Deferred until an accepted value source exists:
+
+1. Find replacement candidates by maximum market value.
+2. Retrieve a player's market-value observations in chronological order.
 
 Do not add a scan-based endpoint without explicitly documenting why its bounded
 data volume makes the scan acceptable.
@@ -128,7 +134,7 @@ Candidate index:
 
 ```text
 GSI1 partition key: normalized_position
-GSI1 sort key: market_value
+GSI1 sort key: player_id
 ```
 
 Club index:
@@ -142,6 +148,9 @@ Exact physical index names should be configuration values rather than repeated
 string literals.
 
 ### Market-value history table
+
+This table is deferred for the position/age MVP unless a replacement
+market-value source is accepted before infrastructure implementation.
 
 Suggested logical name: `scoutswap-value-history-{environment}`
 
@@ -191,7 +200,7 @@ Boto3. The intended boundary is conceptually:
 ```python
 class PlayerRepository(Protocol):
     def get_player(self, player_id: int): ...
-    def find_candidates(self, position: str, max_value: int, limit: int): ...
+    def find_candidates(self, position: str, limit: int): ...
     def save_players(self, players): ...
 
 
@@ -206,14 +215,12 @@ make the domain layer import Boto3.
 ## Replacement score v1
 
 The first score must be deterministic and explainable. Start with source fields
-that football-data.org is expected to expose:
+that the SS-001/SS-002 audit confirmed are available:
 
 ```text
-Position similarity:       40%
-Age similarity:            25%
-Value/budget fit:           20%
-Contract opportunity:      10%
-Data completeness:          5%
+Position similarity:       60%
+Age similarity:            30%
+Data completeness:         10%
 ```
 
 These are initial product weights, not validated sporting science. Keep weights
@@ -221,12 +228,18 @@ in one explicit configuration object and test boundary behavior.
 
 Initial filters:
 
-- Maximum market value.
 - Maximum age, when age is available.
 - Exclude the selected player.
 - Optionally exclude the selected player's club.
 - Require an exact normalized position by default.
 - Exclude candidates below a configurable data-completeness threshold.
+
+Deferred filters and scores:
+
+- Maximum market value.
+- Value/budget fit.
+- Contract opportunity.
+- Estimated savings.
 
 Every result should include structured explanation fields rather than only a
 preformatted sentence.

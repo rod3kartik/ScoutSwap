@@ -43,10 +43,12 @@ Statuses:
 ## D-005 — Multiple-table DynamoDB design
 
 - Status: Accepted
-- Decision: Start with separate player, value-history, and synchronization
-  tables rather than single-table design.
-- Consequence: The first implementation favors clarity; consolidate only when
-  measured access patterns justify the complexity.
+- Decision: Start with separate player and synchronization tables rather than
+  single-table design. Add a separate value-history table only after an accepted
+  market-value source exists.
+- Consequence: The first implementation favors clarity and avoids provisioning
+  unused value-history infrastructure. Consolidate only when measured access
+  patterns justify the complexity.
 
 ## D-006 — Storage abstraction
 
@@ -105,8 +107,17 @@ Statuses:
 
 ## D-014 — Source-data feasibility
 
-- Status: Proposed pending evidence
-- Decision: Determine whether non-null football-data.org market-value coverage is
-  sufficient for the MVP.
-- Decision needed by: SS-003.
-
+- Status: Accepted
+- Context: The SS-001/SS-002 Premier League audit run on 2026-09-07 returned
+  548 players across 20 teams from one `/competitions/PL/teams` request. Club
+  association, position, and date-of-birth coverage were 100.0%. Contract
+  expiration and market-value coverage were both 0.0%.
+- Decision: The current football-data.org subscription and endpoint combination
+  does not support the original value-based replacement MVP without scope
+  changes or another market-value source.
+- Consequence: ScoutSwap will proceed with a position- and age-based
+  recommendation MVP. Affordability, estimated savings, and value/budget
+  scoring must be omitted or marked unavailable unless a new accepted data
+  source is added before release. Do not present missing market values as
+  zero-value players, and do not finalize value-based DynamoDB indexes or
+  ranking weights until the replacement market-value source is decided.
