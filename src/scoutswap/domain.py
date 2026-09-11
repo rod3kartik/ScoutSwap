@@ -8,6 +8,7 @@ from typing import Optional
 
 from scoutswap.models import Player as SourcePlayer
 from scoutswap.models import Team as SourceTeam
+from scoutswap.positions import NormalizedPosition, normalize_position
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,7 @@ class DomainPlayer:
     name: str
     club: ClubReference
     source_position: Optional[str]
+    normalized_position: NormalizedPosition
     observed_at: datetime
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -53,6 +55,7 @@ class DomainPlayer:
             last_name=player.last_name,
             club=ClubReference(club_id=club.id, club_name=club.name),
             source_position=player.position,
+            normalized_position=normalize_position(player.position),
             date_of_birth=player.date_of_birth,
             nationality=player.nationality,
             shirt_number=player.shirt_number,

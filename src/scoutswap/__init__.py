@@ -4,6 +4,7 @@ from scoutswap.client import FootballDataClient
 from scoutswap.config import Settings
 from scoutswap.domain import ClubReference, DomainPlayer
 from scoutswap.models import CompetitionTeams, Contract, Player, Team
+from scoutswap.positions import NormalizedPosition
 
 __all__ = [
     "ClubReference",
@@ -11,6 +12,7 @@ __all__ = [
     "Contract",
     "DomainPlayer",
     "FootballDataClient",
+    "NormalizedPosition",
     "Player",
     "Settings",
     "Team",
