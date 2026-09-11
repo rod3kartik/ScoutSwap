@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from scoutswap.domain import ClubReference, DomainPlayer
 from scoutswap.models import Player, Team
+from scoutswap.positions import NormalizedPosition
 
 
 def test_domain_player_preserves_source_and_club_context() -> None:
@@ -30,6 +31,7 @@ def test_domain_player_preserves_source_and_club_context() -> None:
     assert domain_player.name == "Ada Striker"
     assert domain_player.club == ClubReference(club_id=1, club_name="Example FC")
     assert domain_player.source_position == "Centre-Forward"
+    assert domain_player.normalized_position == NormalizedPosition.FORWARD
     assert domain_player.observed_at == observed_at
     assert domain_player.first_name == "Ada"
     assert domain_player.last_name == "Striker"
@@ -62,6 +64,7 @@ def test_domain_player_allows_missing_optional_source_fields() -> None:
     assert domain_player.player_id == 11
     assert domain_player.club.club_id == 2
     assert domain_player.source_position is None
+    assert domain_player.normalized_position == NormalizedPosition.UNKNOWN
     assert domain_player.date_of_birth is None
     assert domain_player.market_value is None
     assert domain_player.contract_until is None
