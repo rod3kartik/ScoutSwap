@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from scoutswap.domain import ClubReference, DomainPlayer
 from scoutswap.models import Player, Team
@@ -41,6 +41,8 @@ def test_domain_player_preserves_source_and_club_context() -> None:
     assert domain_player.shirt_number == 9
     assert domain_player.market_value == 20_000_000
     assert domain_player.contract_until == "2028-06"
+    assert domain_player.age_on(date(2026, 9, 10)) == 25
+    assert domain_player.contract_end_date() == date(2028, 6, 30)
 
 
 def test_domain_player_allows_missing_optional_source_fields() -> None:
@@ -68,3 +70,5 @@ def test_domain_player_allows_missing_optional_source_fields() -> None:
     assert domain_player.date_of_birth is None
     assert domain_player.market_value is None
     assert domain_player.contract_until is None
+    assert domain_player.age_on(date(2026, 9, 10)) is None
+    assert domain_player.contract_end_date() is None
