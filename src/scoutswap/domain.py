@@ -9,6 +9,7 @@ from typing import Optional
 from scoutswap.models import Player as SourcePlayer
 from scoutswap.models import Team as SourceTeam
 from scoutswap.positions import NormalizedPosition, normalize_position
+from scoutswap.temporal import calculate_age, parse_contract_until
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,16 @@ class DomainPlayer:
     shirt_number: Optional[int] = None
     market_value: Optional[int] = None
     contract_until: Optional[str] = None
+
+    def age_on(self, as_of: date) -> Optional[int]:
+        """Return age in complete years on an explicit date."""
+
+        return calculate_age(self.date_of_birth, as_of=as_of)
+
+    def contract_end_date(self) -> Optional[date]:
+        """Return the parsed contract end date when the source value is usable."""
+
+        return parse_contract_until(self.contract_until)
 
     @classmethod
     def from_source(
