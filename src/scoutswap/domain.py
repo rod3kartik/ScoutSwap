@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Optional
 
+from scoutswap.completeness import CompletenessScore, calculate_data_completeness
 from scoutswap.models import Player as SourcePlayer
 from scoutswap.models import Team as SourceTeam
 from scoutswap.positions import NormalizedPosition, normalize_position
@@ -47,6 +48,11 @@ class DomainPlayer:
         """Return the parsed contract end date when the source value is usable."""
 
         return parse_contract_until(self.contract_until)
+
+    def data_completeness(self) -> CompletenessScore:
+        """Return source data coverage used by ranking and storage workflows."""
+
+        return calculate_data_completeness(self)
 
     @classmethod
     def from_source(
